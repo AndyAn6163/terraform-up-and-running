@@ -61,7 +61,9 @@ resource "aws_lb_target_group" "asg" {
 }
 
 resource "aws_autoscaling_group" "example" {
-  launch_configuration = aws_launch_configuration.example.name
+  launch_template {
+    id = aws_launch_template.example.id
+  }
   # in prod evnironment, ASG's instances should place in private subnets, but in default vpc all subnets are public subnets
   vpc_zone_identifier = data.aws_subnets.default.ids
   target_group_arns = [aws_lb_target_group.asg.arn]
@@ -78,16 +80,16 @@ resource "aws_autoscaling_group" "example" {
   
 }
 
-resource "aws_launch_configuration" "example" {
+# Launch Configurations to de deprecated On October 1st 2024
+# The Launch Configuration creation operation is not available in your account. 
+# Use launch templates to create configuration templates for your Auto Scaling groups.
+# https://pet2cattle.com/2021/08/convert-launch-configuration-to-launch-template
+resource "aws_launch_template" "example" {
   image_id = "ami-0ea3c35c5c3284d82"
   instance_type = "t2.micro"
-  security_groups = [aws_security_group.instance.id]
+  vpc_security_group_ids = [aws_security_group.instance.id]
 
-  user_data = <<-EOF
-    #!/bin/bash
-    echo "Hello World, Andy~" > index.html
-    nohup busybox httpd -f -p ${var.server_port} &
-  EOF
+  user_data = base64encode(data.template_file.user_data_demo.rendered)
 
   # Required when using a launch configuration with an auto scaling group
   lifecycle {
@@ -150,5 +152,13 @@ data "aws_subnets" "default" {
     name = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+}
+
+data "template_file" "user_data_demo" {
+  template = <<-EOF
+    #!/bin/bash
+    echo "Hello World, Andy~" > index.html
+    nohup busybox httpd -f -p ${var.server_port} &
+  EOF
 }
 
