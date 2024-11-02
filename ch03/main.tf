@@ -7,8 +7,13 @@ resource "aws_s3_bucket" "terraform_state" {
 
   # Preven accidential deletion of this S3 bucket
   lifecycle {
-    prevent_destroy = true
+    # in prod environment, you should set prevent_destroy = true
+    # prevent_destroy = true
   }
+  # if you want to use terraform destroy to delete bucket but bucket with version ebabled 
+  # get Errot : The bucket you tried to delete is not empty. You must delete all versions in the bucket
+  # solution : add force_destroy = true
+  force_destroy = true
 }
 
 # Enable versioning so you can see the full revision history of your state files
@@ -80,9 +85,9 @@ resource "aws_dynamodb_table" "terraform_locks" {
 
 # Partial Configuration. 
 # The other settings will be passed in from a file via -backend-config arguments to 'terraform init'
-terraform {
-  backend "s3" {
-    key = "exmaple/terraform.tfstate"
-  }
-}
+# terraform {
+#   backend "s3" {
+#     key = "exmaple/terraform.tfstate"
+#   }
+# }
 
