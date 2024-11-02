@@ -38,3 +38,8 @@
    The bucket you tried to delete is not empty. You must delete all versions in the bucket
 
 5. 執行 terraform destroy
+
+# web-server-cluster 加上 remote backend
+
+1. 因為 web-server-cluster 的 main.tf 沒有要部署 s3 或者 DynamoDB 因此沒有如上兩步驟的問題
+2. 只要 remote backend 所使用的 s3 跟 DynamoDB 已經部署上去，web-server-cluster 直接加上 remote backend 即可
