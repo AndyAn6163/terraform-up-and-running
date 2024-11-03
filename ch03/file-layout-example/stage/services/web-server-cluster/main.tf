@@ -3,17 +3,17 @@ provider "aws" {
 }
 
 resource "aws_lb" "example" {
-  name = "terraform-asg-example"
+  name               = "terraform-asg-example"
   load_balancer_type = "application"
   # in prod evnironment, alb should place in public subnets, but in default vpc all subnets are public subnets
-  subnets = data.aws_subnets.default.ids
+  subnets         = data.aws_subnets.default.ids
   security_groups = [aws_security_group.alb.id]
 }
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port = 80
-  protocol = "HTTP"
+  port              = 80
+  protocol          = "HTTP"
 
   # By default, return a simple 404 page
   default_action {
@@ -22,14 +22,14 @@ resource "aws_lb_listener" "http" {
     fixed_response {
       content_type = "text/plain"
       message_body = "404: page not found"
-      status_code = 404
+      status_code  = 404
     }
   }
 }
 
 resource "aws_lb_listener_rule" "asg" {
   listener_arn = aws_lb_listener.http.arn
-  priority = 100
+  priority     = 100
 
   condition {
     path_pattern {
@@ -38,24 +38,24 @@ resource "aws_lb_listener_rule" "asg" {
   }
 
   action {
-    type = "forward"
+    type             = "forward"
     target_group_arn = aws_lb_target_group.asg.arn
   }
 }
 
 resource "aws_lb_target_group" "asg" {
-  name = "terraform-asg-example"
-  port = var.server_port
+  name     = "terraform-asg-example"
+  port     = var.server_port
   protocol = "HTTP"
-  vpc_id = data.aws_vpc.default.id  
+  vpc_id   = data.aws_vpc.default.id
 
   health_check {
-    path = "/"
-    protocol = "HTTP"
-    matcher = "200"
-    interval = 15
-    timeout = 3
-    healthy_threshold = 2
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 15
+    timeout             = 3
+    healthy_threshold   = 2
     unhealthy_threshold = 2
   }
 }
@@ -66,15 +66,15 @@ resource "aws_autoscaling_group" "example" {
   }
   # in prod evnironment, ASG's instances should place in private subnets, but in default vpc all subnets are public subnets
   vpc_zone_identifier = data.aws_subnets.default.ids
-  target_group_arns = [aws_lb_target_group.asg.arn]
-  health_check_type = "ELB"
+  target_group_arns   = [aws_lb_target_group.asg.arn]
+  health_check_type   = "ELB"
 
   min_size = 2
   max_size = 3
 
   tag {
-    key = "Name"
-    value = "terraform-asg-example"
+    key                 = "Name"
+    value               = "terraform-asg-example"
     propagate_at_launch = true
   }
   
@@ -85,8 +85,8 @@ resource "aws_autoscaling_group" "example" {
 # Use launch templates to create configuration templates for your Auto Scaling groups.
 # https://pet2cattle.com/2021/08/convert-launch-configuration-to-launch-template
 resource "aws_launch_template" "example" {
-  image_id = "ami-0ea3c35c5c3284d82"
-  instance_type = "t2.micro"
+  image_id               = "ami-0ea3c35c5c3284d82"
+  instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.instance.id]
 
   user_data = base64encode(data.template_file.user_data_demo.rendered)
@@ -102,9 +102,9 @@ resource "aws_security_group" "instance" {
   name = "terraform-example-instance"
   
   ingress {
-    from_port = var.server_port
-    to_port = var.server_port
-    protocol = "tcp"
+    from_port   = var.server_port
+    to_port     = var.server_port
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]  
   }
 
@@ -122,9 +122,9 @@ resource "aws_security_group" "alb" {
 
   # Allow inbound HTTP requests
   ingress {
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["106.1.226.0/24"]
   }
 
@@ -136,9 +136,9 @@ resource "aws_security_group" "alb" {
   # We feel this leads to fewer surprises in terms of controlling your egress rules. 
   # If you desire this rule to be in place, you can use this egress block:
   egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
@@ -149,7 +149,7 @@ data "aws_vpc" "default" {
 
 data "aws_subnets" "default" {
   filter {
-    name = "vpc-id"
+    name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
 }
