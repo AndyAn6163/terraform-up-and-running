@@ -81,15 +81,15 @@ resource "aws_autoscaling_group" "example" {
   target_group_arns   = [aws_lb_target_group.asg.arn]
   health_check_type   = "ELB"
 
-  min_size = 2
-  max_size = 3
+  min_size = 1
+  max_size = 1
 
   tag {
     key                 = "Name"
     value               = "terraform-asg-example"
     propagate_at_launch = true
   }
-  
+
 }
 
 # Launch Configurations to de deprecated On October 1st 2024
@@ -101,11 +101,22 @@ resource "aws_launch_template" "example" {
   instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.instance.id]
 
-# refreshing instance after launch template update (e.g. user_data)
+  # refreshing instance after launch template update (e.g. user_data)
   # Whether to update Default Version each update. Conflicts with default_version.
   update_default_version = true
 
 
+  # new user_data
+  # 雖然是紅字，但測試時是可以傳遞參數
+  # user-data.sh 可以接收參數並且顯示在 html 上
+  user_data = base64encode(templatefile("user-data.sh", {
+    server_port = var.server_port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
+  }))
+
+  # origin user_data 
+  # user_data = base64encode(data.template_file.user_data_demo.rendered)
 
   # Required when using a launch configuration with an auto scaling group
   lifecycle {
@@ -116,12 +127,12 @@ resource "aws_launch_template" "example" {
 
 resource "aws_security_group" "instance" {
   name = "terraform-example-instance"
-  
+
   ingress {
     from_port   = var.server_port
     to_port     = var.server_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -130,7 +141,7 @@ resource "aws_security_group" "instance" {
     protocol    = "tcp"
     cidr_blocks = ["3.16.146.0/29"]
   }
-  
+
 }
 
 resource "aws_security_group" "alb" {
@@ -170,12 +181,15 @@ data "aws_subnets" "default" {
   }
 }
 
-data "template_file" "user_data_demo" {
-  template = <<-EOF
-    #!/bin/bash
-    echo "Hello World, Andy~" > index.html
-    nohup busybox httpd -f -p ${var.server_port} &
-  EOF
+data "terraform_remote_state" "db" {
+  backend = "s3"
+
+  config = {
+    bucket = "terraform-up-and-running-state-andyan"
+    key    = "stage/data-stores/mysql/terraform.tfstate"
+    region = "us-east-2"
+  }
+}
 
 # Setting backend to remote backend s3
 # 使用新的 key，因此狀態檔案與 s3 分開
