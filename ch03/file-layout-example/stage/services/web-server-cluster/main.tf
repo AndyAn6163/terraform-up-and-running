@@ -63,7 +63,19 @@ resource "aws_lb_target_group" "asg" {
 resource "aws_autoscaling_group" "example" {
   launch_template {
     id = aws_launch_template.example.id
+    # refreshing instance after launch template update (e.g. user_data)
+    # 如果不指定 versrion 是最新的 version
+    # aws_launch_template 的 user_data 改變時，launch_template 更新了一版 (如第二版)
+    # 但 aws_autoscaling_group 還是使用舊版 launch_template (如第一版)
+    version = aws_launch_template.example.latest_version
   }
+
+  # refreshing instance after launch template update (e.g. user_data)
+  # 透過 instance_refresh 當 aws_launch_template 的 user_data 改變時自動更新 instance
+  instance_refresh {
+    strategy = "Rolling"
+  }
+
   # in prod evnironment, ASG's instances should place in private subnets, but in default vpc all subnets are public subnets
   vpc_zone_identifier = data.aws_subnets.default.ids
   target_group_arns   = [aws_lb_target_group.asg.arn]
@@ -89,7 +101,11 @@ resource "aws_launch_template" "example" {
   instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.instance.id]
 
-  user_data = base64encode(data.template_file.user_data_demo.rendered)
+# refreshing instance after launch template update (e.g. user_data)
+  # Whether to update Default Version each update. Conflicts with default_version.
+  update_default_version = true
+
+
 
   # Required when using a launch configuration with an auto scaling group
   lifecycle {
@@ -160,5 +176,13 @@ data "template_file" "user_data_demo" {
     echo "Hello World, Andy~" > index.html
     nohup busybox httpd -f -p ${var.server_port} &
   EOF
+
+# Setting backend to remote backend s3
+# 使用新的 key，因此狀態檔案與 s3 分開
+# terraform init -backend-config ./backend.hcl
+terraform {
+  backend "s3" {
+    key = "stage/services/web-server-cluster/terraform.tfstate"
+  }
 }
 
