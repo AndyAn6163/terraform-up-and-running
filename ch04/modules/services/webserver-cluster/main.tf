@@ -11,7 +11,7 @@ resource "aws_lb" "example" {
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = 80
+  port              = local.http_port
   protocol          = "HTTP"
 
   # By default, return a simple 404 page
@@ -130,15 +130,25 @@ resource "aws_security_group" "instance" {
   ingress {
     from_port   = var.server_port
     to_port     = var.server_port
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.all_ips
   }
 
+  # AWS IP address ranges
+  # https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+  # https://ip-ranges.amazonaws.com/ip-ranges.json
+  # https://stackoverflow.com/questions/56917634/amazon-ec2-instance-connect-for-ssh-security-group
+  # {
+  #  "ip_prefix": "3.16.146.0/29",
+  #  "region": "us-east-2",
+  #  "service": "EC2_INSTANCE_CONNECT",
+  #  "network_border_group": "us-east-2"
+  # }
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["3.16.146.0/29"]
+    from_port   = local.ssh_port
+    to_port     = local.ssh_port
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.ec2_instance_connect_ips
   }
 
 }
@@ -148,10 +158,10 @@ resource "aws_security_group" "alb" {
 
   # Allow inbound HTTP requests
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["106.1.226.0/24"]
+    from_port   = local.http_port
+    to_port     = local.http_port
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.isp_ips
   }
 
   # Allow all outbound requests
@@ -162,10 +172,10 @@ resource "aws_security_group" "alb" {
   # We feel this leads to fewer surprises in terms of controlling your egress rules. 
   # If you desire this rule to be in place, you can use this egress block:
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = local.any_port
+    to_port     = local.any_port
+    protocol    = local.any_protocol
+    cidr_blocks = local.all_ips
   }
 }
 
@@ -197,5 +207,16 @@ terraform {
   backend "s3" {
     key = "stage/services/web-server-cluster/terraform.tfstate"
   }
+}
+
+locals {
+  http_port                = 80
+  ssh_port                 = 22
+  any_port                 = 0
+  any_protocol             = "-1"
+  tcp_protocol             = "tcp"
+  all_ips                  = ["0.0.0.0/0"]
+  ec2_instance_connect_ips = ["3.16.146.0/29"]
+  isp_ips                  = ["106.1.226.0/24"]
 }
 
