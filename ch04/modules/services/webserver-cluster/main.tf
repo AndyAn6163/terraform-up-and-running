@@ -1,6 +1,5 @@
-provider "aws" {
-  region = "us-east-2"
-}
+# 如果你能對模組執行 terraform apply 就會被視為根模組 root moudle
+# 非根模組不會有 providers 因此 providers 拿掉
 
 resource "aws_lb" "example" {
   name               = "terraform-asg-example"
