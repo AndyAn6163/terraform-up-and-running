@@ -80,8 +80,8 @@ resource "aws_autoscaling_group" "example" {
   target_group_arns   = [aws_lb_target_group.asg.arn]
   health_check_type   = "ELB"
 
-  min_size = 1
-  max_size = 1
+  min_size = var.min_size
+  max_size = var.max_size
 
   tag {
     key                 = "Name"
@@ -97,7 +97,7 @@ resource "aws_autoscaling_group" "example" {
 # https://pet2cattle.com/2021/08/convert-launch-configuration-to-launch-template
 resource "aws_launch_template" "example" {
   image_id               = "ami-0ea3c35c5c3284d82"
-  instance_type          = "t2.micro"
+  instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.instance.id]
 
   # refreshing instance after launch template update (e.g. user_data)
