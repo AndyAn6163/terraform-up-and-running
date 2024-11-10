@@ -128,13 +128,26 @@ resource "aws_launch_template" "example" {
 
 resource "aws_security_group" "instance" {
   name = "${var.cluster_name}-instance"
+}
 
-  ingress {
-    from_port   = var.server_port
-    to_port     = var.server_port
-    protocol    = local.tcp_protocol
-    cidr_blocks = local.all_ips
-  }
+resource "aws_security_group_rule" "allow_server_http_inbound" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+
+  from_port   = var.server_port
+  to_port     = var.server_port
+  protocol    = local.tcp_protocol
+  cidr_blocks = local.all_ips
+}
+
+resource "aws_security_group_rule" "allow_server_ssh_inbound" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+
+  from_port   = local.ssh_port
+  to_port     = local.ssh_port
+  protocol    = local.tcp_protocol
+  cidr_blocks = local.ec2_instance_connect_ips
 
   # AWS IP address ranges
   # https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
@@ -146,25 +159,30 @@ resource "aws_security_group" "instance" {
   #  "service": "EC2_INSTANCE_CONNECT",
   #  "network_border_group": "us-east-2"
   # }
-  ingress {
-    from_port   = local.ssh_port
-    to_port     = local.ssh_port
-    protocol    = local.tcp_protocol
-    cidr_blocks = local.ec2_instance_connect_ips
-  }
-
 }
 
 resource "aws_security_group" "alb" {
   name = "${var.cluster_name}-alb"
+}
 
-  # Allow inbound HTTP requests
-  ingress {
-    from_port   = local.http_port
-    to_port     = local.http_port
-    protocol    = local.tcp_protocol
-    cidr_blocks = local.isp_ips
-  }
+resource "aws_security_group_rule" "allow_http_inbound" {
+  type              = "ingress"
+  security_group_id = aws_security_group.alb.id
+
+  from_port   = local.http_port
+  to_port     = local.http_port
+  protocol    = local.tcp_protocol
+  cidr_blocks = local.isp_ips
+}
+
+resource "aws_security_group_rule" "allow_http_outbound" {
+  type              = "egress"
+  security_group_id = aws_security_group.alb.id
+
+  from_port   = local.any_port
+  to_port     = local.any_port
+  protocol    = local.any_protocol
+  cidr_blocks = local.all_ips
 
   # Allow all outbound requests
   # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group.html
@@ -172,13 +190,7 @@ resource "aws_security_group" "alb" {
   # When creating a new Security Group inside a VPC, Terraform will remove this default rule, 
   # and require you specifically re-create it if you desire that rule. 
   # We feel this leads to fewer surprises in terms of controlling your egress rules. 
-  # If you desire this rule to be in place, you can use this egress block:
-  egress {
-    from_port   = local.any_port
-    to_port     = local.any_port
-    protocol    = local.any_protocol
-    cidr_blocks = local.all_ips
-  }
+  # If you desire this rule to be in place, you can use this egress block
 }
 
 data "aws_vpc" "default" {
@@ -219,6 +231,6 @@ locals {
   tcp_protocol             = "tcp"
   all_ips                  = ["0.0.0.0/0"]
   ec2_instance_connect_ips = ["3.16.146.0/29"]
-  isp_ips                  = ["106.1.226.0/24"]
+  isp_ips                  = ["106.1.226.0/24", "1.169.157.108"]
 }
 
