@@ -108,7 +108,9 @@ resource "aws_launch_template" "example" {
   # new user_data
   # 雖然是紅字，但測試時是可以傳遞參數
   # user-data.sh 可以接收參數並且顯示在 html 上
-  user_data = base64encode(templatefile("user-data.sh", {
+  # ${path.module} 傳回定義這個表示式的模組所在的檔案系統路徑
+  # 即從 source = "../../../modules/services/webserver-cluster" 開始定義路徑
+  user_data = base64encode(templatefile("${path.module}/user-data.sh", {
     server_port = var.server_port
     db_address  = data.terraform_remote_state.db.outputs.address
     db_port     = data.terraform_remote_state.db.outputs.port
